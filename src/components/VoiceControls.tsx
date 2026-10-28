@@ -1,0 +1,12 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {Volume2,Square,Pause,Play} from 'lucide-react';
+import {translator} from '@/lib/i18n';
+import type {Language} from '@/lib/types';
+export function VoiceControls({text,language}:{text:string;language:Language}){
+ const t=translator(language);const [voices,setVoices]=useState<SpeechSynthesisVoice[]>([]);const [status,setStatus]=useState<'idle'|'playing'|'paused'>('idle');const [speed,setSpeed]=useState(0.9);const [error,setError]=useState<'noVoice'|'speechUnavailable'|'speechError'|null>(null);
+ useEffect(()=>{if(!('speechSynthesis'in window))return;const load=()=>setVoices(window.speechSynthesis.getVoices());load();window.speechSynthesis.addEventListener('voiceschanged',load);return()=>{window.speechSynthesis.removeEventListener('voiceschanged',load);window.speechSynthesis.cancel();};},[]);
+ useEffect(()=>{if('speechSynthesis'in window)window.speechSynthesis.cancel();setStatus('idle');setError(null);},[language,text]);
+ function play(){if(!('speechSynthesis'in window)){setError('speechUnavailable');return;}const available=voices.length?voices:speechSynthesis.getVoices();const voice=available.find(v=>v.lang.toLowerCase()===`${language}-in`)||available.find(v=>v.lang.toLowerCase().startsWith(language));if(!voice){setError('noVoice');return;}speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.voice=voice;utterance.lang=voice.lang;utterance.rate=speed;utterance.onend=()=>setStatus('idle');utterance.onerror=event=>{setStatus('idle');if(event.error!=='canceled'&&event.error!=='interrupted')setError('speechError');};setError(null);speechSynthesis.speak(utterance);setStatus('playing');}
+ return <div className="voice-controls no-print"><button className="button secondary" onClick={play}><Volume2 size={18}/>{t('listen')}</button>{status!=='idle'&&<><button className="button secondary" onClick={()=>{if(status==='paused'){speechSynthesis.resume();setStatus('playing');}else{speechSynthesis.pause();setStatus('paused');}}}>{status==='paused'?<Play size={16}/>:<Pause size={16}/ >}{t(status==='paused'?'resume':'pause')}</button><button className="button secondary" onClick={()=>{speechSynthesis.cancel();setStatus('idle')}}><Square size={16}/>{t('stop')}</button></>}<label>{t('speed')}<select value={speed} onChange={e=>setSpeed(Number(e.target.value))}>{[0.75,0.9,1,1.25,1.5].map(n=><option key={n} value={n}>{n}×</option>)}</select></label>{error&&<p className="notice" role="status">{t(error)}</p>}</div>;
+}

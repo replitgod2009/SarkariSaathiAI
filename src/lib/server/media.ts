@@ -1,0 +1,5 @@
+import {fileTypeFromBuffer} from 'file-type';
+import sharp from 'sharp';
+import {PDFDocument} from 'pdf-lib';
+import {PublicError} from './errors';
+export async function validateMedia(mediaType:string,dataBase64:string){const data=Buffer.from(dataBase64,'base64');if(data.length>3*1024*1024)throw new PublicError('Choose a file no larger than 3 MB after preparation.',413,mediaType==='application/pdf'?'pdfTooLarge':'imageTooLarge');const type=await fileTypeFromBuffer(data);if(!type||type.mime!==mediaType||!['image/jpeg','image/png','image/webp','image/gif','application/pdf'].includes(type.mime))throw new PublicError('The file contents do not match a supported document type.',400,'inputError');if(type.mime==='application/pdf'){try{const pdf=await PDFDocument.load(data);if(pdf.getPageCount()>25)throw new Error('Too many pages');}catch{throw new PublicError('Choose an unencrypted, readable PDF with at most 25 pages.',400,'inputError');}}else{try{await sharp(data,{limitInputPixels:25000000,pages:1}).stats();}catch{throw new PublicError('The image cannot be read. Please choose a clearer photo.',400,'imageUnreadable');}}}
